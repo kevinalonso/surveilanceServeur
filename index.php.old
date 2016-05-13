@@ -1,0 +1,107 @@
+﻿<?php
+
+define('AES_256_CBC', 'aes-256-cbc');
+define('IV_BASE_64_LENGHT','24');
+define('SECRET_KEY_BASE_64_LENGHT','24');
+
+
+	// Datas a chiffrer
+	$data = '{"login":"hello","password":"2cb4b1431b84ec15d35ed83bb927e27e8967d75f4bcd9cc4b25c8d879ae23e18"}';
+
+
+	//***********************************//
+	//** Génération de SecretKey (kc) **//
+	//*********************************//
+	$secretkey = openssl_random_pseudo_bytes(16);
+	$secretkeyBase64 = base64_encode($secretkey);
+	echo '<br/>' . '<b>Base 64 SecretKey : </b>'.$secretkeyBase64;
+	echo "<br/>";
+	
+	//***********************//
+	//** Taille secretKey **//
+	//***********************//
+	echo '<b>Taille byte de SecretKey :</b>' .mb_strlen($secretkey);
+	echo "<br/>";
+	echo "<br/>";
+	
+	//********************//
+	//** Génération iv **//
+	//******************//
+	$iv = mcrypt_create_iv(16,MCRYPT_DEV_RANDOM);
+	$ivEncode =  base64_encode($iv);
+	echo '<b>Base 64 iv </b>: '. $ivEncode;
+	echo '<br/>';
+	
+	//*********************//
+	//** Taille de l'iv **//
+	//*******************//
+	echo '<b>Taille byte iv : </B>'. mb_strlen(base64_decode($ivEncode));
+	echo '<br/>';
+	echo "<br/>";
+	
+	//********************************//
+	//**  ENCRYPT Data AES 128 CBC **//
+	//*******************************//
+	$encrypted = base64_encode(openssl_encrypt($data, AES_256_CBC,$secretkey, 0, $iv));
+	echo "<b>Encrypted:</B> $encrypted\n";
+	echo "<br/>";
+	
+	//********************************//
+	//**  DECRYPT Data AES 128 CBC **//
+	//*******************************//
+	$decrypted = openssl_decrypt(base64_decode($encrypted), AES_256_CBC, $secretkey, 0, $iv);
+	echo "<br/> <b>Decrypted:</b> $decrypted\n";
+	echo "<br/>";
+	
+	//*****************************//
+	//** CREATE MESSAGE TO SEND **//
+	//****************************//
+	$message = $ivSecretKeyJson = $ivEncode . $secretkeyBase64 . $encrypted;
+	echo '<br/> <b>Message [iv + secretkey + jsonEncrypted] : </b>'. $message;
+	
+	
+	//***************************//
+	//** EXTRACT MESSAGE REÇU **//
+	//*************************//
+	$array = str_split($message);
+	$ivExtract = null; 
+	$SecretKeyExtract = null;
+	$jsonExtract = null;
+
+	//*****************//
+	//** EXTRACT IV **//
+	//***************//
+	for ($i = 0; $i < IV_BASE_64_LENGHT; $i++) {	
+		$ivExtract .= $array[$i];
+	}
+	echo '<br/>';
+	echo '<br/> <b>ivExtract : </b>' . $ivExtract;
+	echo '<br/><b>Taille byte ivextract : </b>'. mb_strlen(base64_decode($ivExtract));
+
+	//************************//
+	//** EXTRACT SECRETKEY **//
+	//**********************//
+	for ($i = IV_BASE_64_LENGHT; $i < IV_BASE_64_LENGHT + SECRET_KEY_BASE_64_LENGHT; $i++) {
+		$SecretKeyExtract .= $array[$i];
+	}
+	echo '<br/>';
+	echo '<br/> <b>SecretKeyExtract : </b>' . $SecretKeyExtract;
+	echo '<br/> <b>Taille byte de SecretKeyExtract : </b>' .mb_strlen($secretkey);
+	
+	//********************//
+	//** EXTRACT DATAS **//
+	//******************//
+	for ($i = IV_BASE_64_LENGHT + SECRET_KEY_BASE_64_LENGHT; $i < strlen($message); $i++) {
+		$jsonExtract .= $array[$i];
+	}
+	echo '<br/>';
+	echo '<br/> <b>jsonExtract : </b> ' . $jsonExtract;
+	echo "<br/>";
+	
+	//***************************//
+	//** DECRYPT MESSAGE REÇU **//
+	//*************************//
+	$decryptedMessage = openssl_decrypt(base64_decode($jsonExtract), AES_256_CBC, base64_decode($SecretKeyExtract), 0, base64_decode($ivExtract));
+	echo "<br/> <b>Decrypted Extract: </b> $decryptedMessage\n";
+	echo "<br/>";
+	
